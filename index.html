@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EcoCity — Градостроительная экономическая игра</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="top-bar">
+            <div>💰 Деньги: <span id="money">0</span></div>
+            <div>🏠 Население: <span id="population">0</span></div>
+            <div>😊 Счастье: <span id="happiness">0</span>%</div>
+            <div>⚡ Электроэнергия: <span id="electricity">0</span></div>
+            <div>💧 Вода: <span id="water">0</span></div>
+            <div>🍎 Еда: <span id="food">0</span></div>
+        </div>
+
+        <div id="main">
+            <div id="city-map"></div>
+            <div id="sidebar">
+                <h2>Построить здание</h2>
+                <button onclick="build('residential')">🏘 Жилой дом (100$)</button>
+                <button onclick="build('industrial')">🏭 Фабрика (200$)</button>
+                <button onclick="build('power')">⚡ Электростанция (150$)</button>
+                <button onclick="build('farm')">🌾 Ферма (120$)</button>
+                <div id="events"></div>
+            </div>
+        </div>
+    </div>
+
+<script src="game.js"></script>
+</body>
+</html>
