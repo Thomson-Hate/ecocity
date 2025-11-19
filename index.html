@@ -3,33 +3,196 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EcoCity — Градостроительная экономическая игра</title>
-<link rel="stylesheet" href="style.css">
+<title>EcoCity — Реалистичная экономическая игра</title>
+<style>
+/* ===== Стили ===== */
+* { margin:0; padding:0; box-sizing:border-box; font-family: sans-serif; }
+body { background: linear-gradient(to bottom, #a0c4ff, #caf0f8); color: #333; }
+#game-container { width: 100%; max-width: 1300px; margin: 20px auto; }
+#top-bar {
+    display: flex; justify-content: space-around; padding: 10px; background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(10px); border-radius: 10px; margin-bottom: 10px;
+}
+#main { display: flex; gap: 20px; }
+#city-map {
+    display: grid; grid-template-columns: repeat(12, 50px); grid-template-rows: repeat(12, 50px);
+    gap: 2px; background: rgba(255,255,255,0.1); padding: 5px; border-radius: 10px; backdrop-filter: blur(5px);
+}
+.cell { width:50px; height:50px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    display:flex; align-items:center; justify-content:center; font-size:24px; cursor:pointer; }
+#sidebar { width:280px; background: rgba(255,255,255,0.15); padding: 15px; border-radius: 10px; backdrop-filter: blur(10px); }
+button { width: 100%; margin:5px 0; padding: 10px; border:none; border-radius:5px; cursor:pointer; background: #90e0ef; color: #000; font-weight: bold; }
+button:hover { background: #48cae4; }
+#events { margin-top: 20px; max-height: 300px; overflow-y: auto; background: rgba(255,255,255,0.1); padding: 5px; border-radius: 5px; }
+</style>
 </head>
 <body>
-    <div id="game-container">
-        <div id="top-bar">
-            <div>💰 Деньги: <span id="money">0</span></div>
-            <div>🏠 Население: <span id="population">0</span></div>
-            <div>😊 Счастье: <span id="happiness">0</span>%</div>
-            <div>⚡ Электроэнергия: <span id="electricity">0</span></div>
-            <div>💧 Вода: <span id="water">0</span></div>
-            <div>🍎 Еда: <span id="food">0</span></div>
-        </div>
-
-        <div id="main">
-            <div id="city-map"></div>
-            <div id="sidebar">
-                <h2>Построить здание</h2>
-                <button onclick="build('residential')">🏘 Жилой дом (100$)</button>
-                <button onclick="build('industrial')">🏭 Фабрика (200$)</button>
-                <button onclick="build('power')">⚡ Электростанция (150$)</button>
-                <button onclick="build('farm')">🌾 Ферма (120$)</button>
-                <div id="events"></div>
-            </div>
+<div id="game-container">
+    <div id="top-bar">
+        <div>💰 Деньги: <span id="money">0</span></div>
+        <div>🏠 Население: <span id="population">0</span></div>
+        <div>😊 Счастье: <span id="happiness">0</span>%</div>
+        <div>⚡ Электроэнергия: <span id="electricity">0</span></div>
+        <div>💧 Вода: <span id="water">0</span></div>
+        <div>🍎 Еда: <span id="food">0</span></div>
+    </div>
+    <div id="main">
+        <div id="city-map"></div>
+        <div id="sidebar">
+            <h2>Выберите здание для строительства</h2>
+            <button onclick="selectBuilding('residential')">🏘 Жилой дом (100$)</button>
+            <button onclick="selectBuilding('industrial')">🏭 Фабрика (200$)</button>
+            <button onclick="selectBuilding('power')">⚡ Электростанция (150$)</button>
+            <button onclick="selectBuilding('farm')">🌾 Ферма (120$)</button>
+            <div id="events"></div>
         </div>
     </div>
+</div>
 
-<script src="game.js"></script>
+<script>
+// =================== Классы ===================
+class Building {
+    constructor(name,type,cost,upkeep,production,icon){
+        this.name = name;
+        this.type = type;
+        this.cost = cost;
+        this.upkeep = upkeep;           // {money, electricity, water, food}
+        this.production = production;   // {money, electricity, water, food, population}
+        this.icon = icon;
+    }
+}
+
+class City {
+    constructor(width,height){
+        this.width = width;
+        this.height = height;
+        this.money = 5000;
+        this.population = 50;
+        this.happiness = 100;
+        this.resources = { electricity:50, water:50, food:50 };
+        this.buildings = []; // {building, x, y}
+    }
+
+    addBuilding(building,x,y){
+        if(this.money < building.cost){ logEvent("Недостаточно денег!"); return false; }
+        if(this.buildings.some(b=>b.x===x && b.y===y)){ logEvent("Клетка занята!"); return false; }
+
+        this.money -= building.cost;
+        this.buildings.push({building,x,y});
+        logEvent(`Построено: ${building.name} на (${x+1},${y+1})`);
+        return true;
+    }
+
+    tick(){
+        // сброс ресурсов
+        let moneyChange = 0;
+        let electricity = 50;
+        let water = 50;
+        let food = 50;
+        let population = 50;
+
+        this.buildings.forEach(b=>{
+            moneyChange -= b.building.upkeep.money||0;
+            electricity += b.building.production.electricity||0;
+            water += b.building.production.water||0;
+            food += b.building.production.food||0;
+            population += b.building.production.population||0;
+            moneyChange += b.building.production.money||0;
+        });
+
+        this.money += moneyChange;
+        this.resources.electricity = electricity;
+        this.resources.water = water;
+        this.resources.food = food;
+        this.population = population;
+
+        // счастье
+        let penalty = 0;
+        if(this.resources.electricity<0) penalty +=10;
+        if(this.resources.water<0) penalty +=10;
+        if(this.resources.food<this.population) penalty +=10;
+        this.happiness = Math.max(0,100-penalty);
+    }
+}
+
+// =================== Инициализация ===================
+const city = new City(12,12);
+const mapDiv = document.getElementById('city-map');
+const eventsDiv = document.getElementById('events');
+let selectedBuilding = null;
+
+// определения зданий
+const buildingTypes = {
+    residential: new Building("Жилой дом","residential",100,{money:0},{population:10},'🏠'),
+    industrial: new Building("Фабрика","industrial",200,{money:2,electricity:5,water:2},{money:10},'🏭'),
+    power: new Building("Электростанция","power",150,{money:1},{electricity:20},'⚡'),
+    farm: new Building("Ферма","farm",120,{money:1,water:2},{food:20},'🌾')
+};
+
+// =================== UI ===================
+function createMap(){
+    mapDiv.innerHTML='';
+    for(let y=0;y<city.height;y++){
+        for(let x=0;x<city.width;x++){
+            const cell = document.createElement('div');
+            cell.className='cell';
+            cell.dataset.x = x;
+            cell.dataset.y = y;
+            cell.addEventListener('click',()=> placeBuilding(x,y));
+            mapDiv.appendChild(cell);
+        }
+    }
+}
+
+function updateMap(){
+    document.querySelectorAll('.cell').forEach(cell=>{
+        const x = parseInt(cell.dataset.x);
+        const y = parseInt(cell.dataset.y);
+        const b = city.buildings.find(b=>b.x===x && b.y===y);
+        cell.innerText = b?b.building.icon:'';
+    });
+}
+
+function updateUI(){
+    document.getElementById('money').innerText = city.money;
+    document.getElementById('population').innerText = city.population;
+    document.getElementById('happiness').innerText = city.happiness;
+    document.getElementById('electricity').innerText = city.resources.electricity;
+    document.getElementById('water').innerText = city.resources.water;
+    document.getElementById('food').innerText = city.resources.food;
+}
+
+function logEvent(text){
+    const div = document.createElement('div');
+    div.innerText = text;
+    eventsDiv.prepend(div);
+}
+
+// =================== Строительство ===================
+function selectBuilding(type){ selectedBuilding = buildingTypes[type]; logEvent(`Вы выбрали: ${selectedBuilding.name}`); }
+
+function placeBuilding(x,y){
+    if(!selectedBuilding) { logEvent("Выберите здание!"); return; }
+    if(city.addBuilding(selectedBuilding,x,y)){
+        updateMap();
+        updateUI();
+    }
+}
+
+// =================== Игровой цикл ===================
+createMap();
+updateUI();
+
+setInterval(()=>{
+    city.tick();
+    updateMap();
+    updateUI();
+    // случайные события
+    if(Math.random()<0.01){
+        logEvent("Произошло событие: экономический кризис!");
+        city.money = Math.max(0,city.money-100);
+    }
+},3000);
+</script>
 </body>
 </html>
